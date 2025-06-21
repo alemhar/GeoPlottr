@@ -47,14 +47,28 @@ class MeasurementController extends Controller
         }
         // Insert
         if (!empty($validated['new'])) {
+            info($validated['new']);
             foreach ($validated['new'] as $new) {
                 // Only insert if there is no id (should not be a modification)
                 if (empty($new['id']) && !empty($new['geojson'])) {
                     // Generate a default name based on date/time if not provided
                     $name = $new['name'] ?? 'Measurement ' . date('Y-m-d H:i:s');
                     
-                    // Calculate area from geojson if available (using geoPHP or similar library would be better)
+                    // Use area and perimeter from request if available
                     $area = null;
+                    $perimeter = null;
+                    
+                    // Check for area directly in the new measurement data
+                    if (isset($new['area']) && is_numeric($new['area'])) {
+                        $area = $new['area'];
+                        info("Found area in request: {$area}");
+                    }
+                    
+                    // Check for perimeter directly in the new measurement data
+                    if (isset($new['perimeter']) && is_numeric($new['perimeter'])) {
+                        $perimeter = $new['perimeter'];
+                        info("Found perimeter in request: {$perimeter}");
+                    }
                     
                     // Handle geojson whether it's a JSON string or already an array
                     $geojson = $new['geojson'];
@@ -62,7 +76,8 @@ class MeasurementController extends Controller
                         $geojson = json_decode($geojson, true);
                     }
                     
-                    if (isset($geojson['properties']['area']) && is_numeric($geojson['properties']['area'])) {
+                    // Fallback: check for area in geojson properties if not found directly
+                    if ($area === null && isset($geojson['properties']['area']) && is_numeric($geojson['properties']['area'])) {
                         $area = $geojson['properties']['area'];
                     }
                     
@@ -98,10 +113,13 @@ class MeasurementController extends Controller
                         'name' => $name,
                         'geojson' => $new['geojson'],
                         'area' => $area,
+                        'perimeter' => $perimeter, // Add perimeter to the fields being saved
                         'coordinates_summary' => $coords_summary,
                         'created_by' => auth()->id(),
                         // 'user_id' => auth()->id(),
                     ]);
+                    
+                    info("Created measurement with area: {$area}, perimeter: {$perimeter}"); // Debug log
                 }
             }
         }
