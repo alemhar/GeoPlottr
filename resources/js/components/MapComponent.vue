@@ -2,21 +2,36 @@
   <div id="map" style="height: 100vh; width: 100vw;"></div>
   <Toaster position="top-right" richColors />
   <button 
-    @click="saveMeasurements" 
+    @click="showConfirmDialog" 
     :disabled="saving" 
     style="position: absolute; top: 16px; right: 16px; z-index: 1000; background: #fff; border: 1px solid #ccc; padding: 8px 16px; border-radius: 4px;"
   >
-    {{ saving ? 'Saving...' : 'Save Measurements' }}
+    {{ saving ? 'Saving...' : 'Save Session' }}
   </button>
+  
+  <!-- Alert Dialog for confirmation -->
+  <ConfirmDialog
+    v-model="confirmDialogOpen"
+    :title="'Save Changes'"
+    :message="confirmMessage"
+    :loading="saving"
+    @confirm="saveConfirmed"
+    @cancel="cancelSave"
+  />
 </template>
 
 <script>
 import LeafletMapAdapter from '../MapAdapters/LeafletMapAdapter';
 import { Inertia } from '@inertiajs/inertia';
 import { toast, Toaster } from 'vue-sonner';
+import ConfirmDialog from './ConfirmDialog.vue';
 
 export default {
   name: 'MapComponent',
+  components: {
+    ConfirmDialog,
+    Toaster
+  },
   props: {
     measurements: {
       type: Array,
@@ -29,6 +44,13 @@ export default {
       dbFeatures: [], // Track features loaded from DB (with id)
       deletedFeatureIds: [], // Track ids of deleted features,
       saving: false, // Track if save in progress
+      confirmDialogOpen: false, // Control the confirm dialog visibility
+      confirmMessage: 'Save changes to the backend?', // Message for the confirmation dialog
+      preparedFeatures: {
+        new: [],
+        modified: [],
+        deleted: []
+      }
     };
   },
   mounted() {
@@ -91,12 +113,17 @@ export default {
     }
   },
   methods: {
-    saveMeasurements() {
+    // Prepare data and show the confirmation dialog
+    showConfirmDialog() {
+      console.log('showConfirmDialog');
+      // Debug the dialog state
+      console.log('Before:', this.confirmDialogOpen);
       if (this.mapAdapter) {
         const geojson = this.mapAdapter.getAllDrawnGeoJSON();
         // Prepare new, modified, and deleted features
         const newFeatures = [];
         const modifiedFeatures = [];
+        
         if (geojson && geojson.features) {
           geojson.features.forEach(f => {
             // Extract dbId ONLY from properties._dbId (toGeoJSON loses root-level _dbId)
@@ -123,34 +150,60 @@ export default {
             }
           });
         }
-        // Confirm before save using standard confirm dialog
-        let confirmMessage = 'Save changes to the backend?';
-        if (!geojson || geojson.features.length === 0) {
-          confirmMessage = 'No measurements found. This will erase all saved measurements. Continue?';
-        }
         
-        if (confirm(confirmMessage)) {
-          this.saving = true;
-          
-          // Use Inertia to post to backend
-          Inertia.post('/measurements', {
-            new: newFeatures,
-            modified: modifiedFeatures,
-            deleted: this.deletedFeatureIds,
-          }, {
-            onSuccess: () => {
-              toast.success('Measurements saved successfully!');
-              this.deletedFeatureIds = [];
-              this.saving = false;
-            },
-            onError: (errors) => {
-              toast.error('Failed to save measurements');
-              console.error(errors);
-              this.saving = false;
-            },
-          });
-        }
+        // Store prepared data for use in saveConfirmed
+        this.preparedFeatures = {
+          new: newFeatures,
+          modified: modifiedFeatures,
+          deleted: this.deletedFeatureIds
+        };
+        
+        // Set confirmation message based on content
+        this.confirmMessage = (!geojson || geojson.features.length === 0) 
+          ? 'No measurements found. This will erase all saved measurements. Continue?' 
+          : 'Save current session to the database?';
+        
+        // Open the confirmation dialog
+        this.confirmDialogOpen = true;
+        console.log('After setting:', this.confirmDialogOpen);
+        
+        // Force a re-render if needed by setting it again in the next tick
+        setTimeout(() => {
+          this.confirmDialogOpen = true;
+          console.log('After timeout:', this.confirmDialogOpen);
+        }, 0);
       }
+    },
+    
+    // Cancel save operation
+    cancelSave() {
+      toast('Save operation cancelled');
+      this.confirmDialogOpen = false;
+    },
+    
+    // Confirmed, proceed with save
+    saveConfirmed() {
+      this.saving = true;
+      
+      // Use Inertia to post to backend
+      Inertia.post('/measurements', {
+        new: this.preparedFeatures.new,
+        modified: this.preparedFeatures.modified,
+        deleted: this.preparedFeatures.deleted,
+      }, {
+        onSuccess: () => {
+          toast.success('Measurements saved successfully!');
+          this.deletedFeatureIds = [];
+          this.saving = false;
+          this.confirmDialogOpen = false;
+        },
+        onError: (errors) => {
+          toast.error('Failed to save measurements');
+          console.error(errors);
+          this.saving = false;
+          this.confirmDialogOpen = false;
+        },
+      });
     },
   },
 };
