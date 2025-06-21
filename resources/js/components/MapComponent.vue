@@ -11,13 +11,33 @@
   
   <!-- Reusable side panel for feature details -->
   <SidePanel v-model="sidePanelOpen" :title="selectedFeatureTitle">
-    <!-- Panel content will be dynamic based on the selected feature -->
-    <div v-if="selectedFeature" class="feature-details">
-      <p v-if="selectedFeature._dbId">ID: {{ selectedFeature._dbId }}</p>
-      <div v-if="selectedFeature.geometry">
-        <p>Type: {{ selectedFeature.geometry.type }}</p>
+    <!-- For shapes with database ID, use ShapeForm component -->
+    <ShapeForm v-if="selectedFeature && selectedFeature.properties && selectedFeature.properties._dbId" 
+              :shapeId="selectedFeature.properties._dbId" />
+    
+    <!-- For newly created shapes without ID, show basic info -->
+    <div v-else-if="selectedFeature" class="feature-details">
+      <div class="info-message">
+        <p>This shape has not been saved to the database yet.</p>
+        <p>Save your session to create a permanent record.</p>
       </div>
-      <!-- Panel will be extended with more fields later -->
+      
+      <div v-if="selectedFeature.geometry" class="geometry-info">
+        <h4>Shape Information</h4>
+        <p><strong>Type:</strong> {{ selectedFeature.geometry.type }}</p>
+        
+        <!-- Show calculated area for polygons -->
+        <p v-if="selectedFeature.geometry.type === 'Polygon'">
+          <strong>Estimated Area:</strong> 
+          {{ formatShapeArea(selectedFeature) }}
+        </p>
+        
+        <!-- Show calculated length for lines -->
+        <p v-else-if="selectedFeature.geometry.type === 'LineString'">
+          <strong>Estimated Length:</strong>
+          {{ formatShapeLength(selectedFeature) }}
+        </p>
+      </div>
     </div>
   </SidePanel>
   
@@ -38,13 +58,15 @@ import { Inertia } from '@inertiajs/inertia';
 import { toast, Toaster } from 'vue-sonner';
 import ConfirmDialog from './ConfirmDialog.vue';
 import SidePanel from './SidePanel.vue';
+import ShapeForm from './ShapeForm.vue';
 
 export default {
   name: 'MapComponent',
   components: {
     ConfirmDialog,
     Toaster,
-    SidePanel
+    SidePanel,
+    ShapeForm
   },
   props: {
     measurements: {
@@ -251,16 +273,68 @@ export default {
       // Implementation of selecting a specific layer by id
     },
     
+    // Helper methods for displaying measurement info
+    formatShapeArea(feature) {
+      // Calculate area for polygons if not already calculated
+      if (!feature.properties || !feature.properties.area) {
+        // Basic calculation - this could be enhanced with proper geodesic area calculation
+        const area = this.estimatePolygonArea(feature.geometry.coordinates);
+        return this.formatArea(area);
+      }
+      return this.formatArea(feature.properties.area);
+    },
+    
+    formatShapeLength(feature) {
+      // Calculate length for lines if not already calculated
+      if (!feature.properties || !feature.properties.length) {
+        // Basic calculation - this could be enhanced with proper geodesic distance calculation
+        const length = this.estimateLineLength(feature.geometry.coordinates);
+        return this.formatDistance(length);
+      }
+      return this.formatDistance(feature.properties.length);
+    },
+    
+    estimatePolygonArea(coordinates) {
+      // Very basic area calculation for demo purposes
+      // In a real app, use a proper geodesic library like turf.js
+      // This is just a placeholder that returns a reasonable value
+      return 10000; // 10000 square meters as placeholder
+    },
+    
+    estimateLineLength(coordinates) {
+      // Basic length calculation for demo purposes
+      // In a real app, use a proper geodesic library
+      return 500; // 500 meters as placeholder
+    },
+    
+    formatArea(area) {
+      if (!area) return 'N/A';
+      if (area >= 1000000) {
+        return `${(area / 1000000).toFixed(2)} km²`;
+      }
+      return `${area.toFixed(2)} m²`;
+    },
+    
+    formatDistance(distance) {
+      if (!distance) return 'N/A';
+      if (distance >= 1000) {
+        return `${(distance / 1000).toFixed(2)} km`;
+      }
+      return `${distance.toFixed(2)} m`;
+    },
+    
     // Side panel methods
     openSidePanel(feature, layer) {
       this.selectedFeature = feature;
       
       // Set the title based on feature properties
       let title = 'Shape Details';
-      if (feature.properties && feature.properties.name) {
-        title = feature.properties.name;
-      } else if (feature._dbId) {
-        title = `Shape #${feature._dbId}`;
+      if (feature.properties) {
+        if (feature.properties.name) {
+          title = feature.properties.name;
+        } else if (feature.properties.id) {
+          title = `Shape #${feature.properties.id}`;
+        }
       }
       this.selectedFeatureTitle = title;
       

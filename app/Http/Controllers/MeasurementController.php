@@ -3,14 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Auth;
+use App\Models\Measurement;
 use Inertia\Inertia;
 
 class MeasurementController extends Controller
 {
     public function index()
     {
-        $measurements = \App\Models\Measurement::all();
+        $measurements = Measurement::all();
         return Inertia::render('Welcome', [
             'measurements' => $measurements,
         ]);
@@ -54,14 +55,22 @@ class MeasurementController extends Controller
                     
                     // Calculate area from geojson if available (using geoPHP or similar library would be better)
                     $area = null;
-                    $geojson = json_decode($new['geojson'], true);
+                    
+                    // Handle geojson whether it's a JSON string or already an array
+                    $geojson = $new['geojson'];
+                    if (is_string($geojson)) {
+                        $geojson = json_decode($geojson, true);
+                    }
+                    
                     if (isset($geojson['properties']['area']) && is_numeric($geojson['properties']['area'])) {
                         $area = $geojson['properties']['area'];
                     }
                     
                     // Calculate center point for coordinates_summary
                     $coords_summary = null;
-                    if (isset($geojson['geometry']['coordinates'][0]) && is_array($geojson['geometry']['coordinates'][0])) {
+                    
+                    // Make sure we have a valid geojson structure
+                    if (is_array($geojson) && isset($geojson['geometry']['coordinates'][0]) && is_array($geojson['geometry']['coordinates'][0])) {
                         // Simple calculation of center (average of all points)
                         $lat_sum = 0;
                         $lng_sum = 0;
@@ -97,13 +106,81 @@ class MeasurementController extends Controller
             }
         }
         // Return to the same page with success message
-        return back()->with([
+        return back()->with('success', 'Changes saved successfully');
+    }
+    
+    /**
+     * Display the specified measurement.
+     *
+     * @param  int  $id
+     * @return \Inertia\Response
+     */
+    public function show($id)
+    {
+        $measurement = Measurement::findOrFail($id);
+        
+        // Check if the user has permission to view this measurement
+        // This would be implemented based on your access control rules
+        
+        return Inertia::render('Api/MeasurementDetail', [
+            'measurement' => $measurement
+        ]);
+    }
+    
+    /**
+     * API endpoint to get a specific measurement.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function apiShow($id)
+    {
+        $measurement = Measurement::findOrFail($id);
+        
+        // Check if the user has permission to view this measurement
+        // This would be implemented based on your access control rules
+        
+        return response()->json([
+            'measurement' => $measurement
+        ]);
+    }
+    
+    /**
+     * Update the specified measurement in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update(Request $request, $id)
+    {
+        $measurement = Measurement::findOrFail($id);
+        
+        // Validate the incoming request
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:255',
+            'category' => 'nullable|string|max:100',
+            'tags' => 'nullable|string',
+            'parcel_number' => 'nullable|string|max:100',
+            'area' => 'nullable|numeric',
+            'perimeter' => 'nullable|numeric',
+            'zoning' => 'nullable|string|max:100',
+            'estimated_value' => 'nullable|numeric',
+            'slope' => 'nullable|numeric',
+            'is_shared' => 'boolean',
+            'access_level' => 'integer|min:0|max:2',
+        ]);
+        
+        // Set last_modified_by to current user
+        $validated['last_modified_by'] = Auth::id();
+        
+        // Update the measurement
+        $measurement->update($validated);
+        
+        return response()->json([
             'success' => true,
-            'stats' => [
-                'updated' => count($updated),
-                'deleted' => count($deleted),
-                'inserted' => count($inserted)
-            ]
+            'measurement' => $measurement
         ]);
     }
     //

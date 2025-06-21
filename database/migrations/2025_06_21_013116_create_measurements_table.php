@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->string('name')->nullable(); // Making nullable to allow saving without a name
-            $table->string('address')->nullable();
+            $table->string('description')->nullable(); // General description of the shape
             $table->decimal('area', 10, 2)->nullable();
             
             // Categorization & Organization
