@@ -17,6 +17,11 @@ class MeasurementController extends Controller
     }
     public function store(Request $request)
     {
+        // Initialize arrays to track changes
+        $updated = [];
+        $deleted = [];
+        $inserted = [];
+        
         $validated = $request->validate([
             'new' => 'array',
             'modified' => 'array',
@@ -51,8 +56,15 @@ class MeasurementController extends Controller
                 }
             }
         }
-        // Return a proper Inertia response by redirecting back
-        return \Inertia\Inertia::location(url()->previous());
+        // Return to the same page with success message
+        return back()->with([
+            'success' => true,
+            'stats' => [
+                'updated' => count($updated),
+                'deleted' => count($deleted),
+                'inserted' => count($inserted)
+            ]
+        ]);
     }
     //
 }

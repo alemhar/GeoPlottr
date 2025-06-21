@@ -68,11 +68,6 @@ export default {
         setTimeout(() => {
           // Check if dialog is in DOM
           const dialogElement = document.querySelector('div[style*="z-index: 9999"]');
-          console.log('Dialog element found in DOM:', !!dialogElement);
-          if (dialogElement) {
-            console.log('Dialog element styles:', dialogElement.style.cssText);
-            console.log('Dialog element is visible:', dialogElement.offsetParent !== null);
-          }
         }, 100);
       }
     }

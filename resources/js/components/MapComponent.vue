@@ -191,15 +191,29 @@ export default {
         modified: this.preparedFeatures.modified,
         deleted: this.preparedFeatures.deleted,
       }, {
-        onSuccess: () => {
-          toast.success('Measurements saved successfully!');
-          this.deletedFeatureIds = [];
+        onSuccess: (page) => {
+          // Check for success message in flash data
+          if (page.props.flash && page.props.flash.success) {
+            const stats = page.props.flash.stats || {};
+            const total = (stats.updated || 0) + (stats.deleted || 0) + (stats.inserted || 0);
+            toast.success(`Measurements saved successfully! (${total} changes)`);
+            
+            // Reset tracking arrays
+            this.deletedFeatureIds = [];
+          } else {
+            toast.success('Measurements saved successfully!');
+          }
           this.saving = false;
           this.confirmDialogOpen = false;
         },
         onError: (errors) => {
-          toast.error('Failed to save measurements');
-          console.error(errors);
+          if (errors.response && errors.response.status === 409) {
+            toast.error('Conflict detected: Another user may have modified these measurements');
+            console.error('Conflict error:', errors.response?.data?.message || 'Unknown conflict');
+          } else {
+            toast.error('Failed to save measurements');
+            console.error('Save error:', errors);
+          }
           this.saving = false;
           this.confirmDialogOpen = false;
         },
