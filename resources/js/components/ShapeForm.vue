@@ -52,14 +52,20 @@
         
         <div class="form-group">
           <label>Measurements</label>
-          <div class="measurement-data">
-            <div>
-              <span class="measurement-label">Area:</span>
-              <span class="measurement-value">{{ formatArea(form.area) }}</span>
+          <div class="measurement-input-fields">
+            <div class="form-group">
+              <label for="area">Area (m²)</label>
+              <div class="input-with-display">
+                <input type="number" id="area" v-model.number="form.area" class="form-control" step="0.01" />
+                <span class="input-display">{{ formatArea(form.area) }}</span>
+              </div>
             </div>
-            <div>
-              <span class="measurement-label">Perimeter:</span>
-              <span class="measurement-value">{{ formatDistance(form.perimeter) }}</span>
+            <div class="form-group">
+              <label for="perimeter">Perimeter (m)</label>
+              <div class="input-with-display">
+                <input type="number" id="perimeter" v-model.number="form.perimeter" class="form-control" step="0.01" />
+                <span class="input-display">{{ formatLength(form.perimeter) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -212,18 +218,19 @@ export default {
         });
     },
     formatArea(area) {
-      if (!area) return 'N/A';
-      if (area >= 1000000) {
-        return `${(area / 1000000).toFixed(2)} km²`;
-      }
-      return `${area.toFixed(2)} m²`;
+      if (!area || isNaN(parseFloat(area))) return 'Not available';
+      const value = parseFloat(area);
+      return value < 10000 ? 
+        `${Math.round(value)} m²` : 
+        `${(Math.round(value / 100) / 100).toFixed(2)} hectares`;
     },
-    formatDistance(distance) {
-      if (!distance) return 'N/A';
-      if (distance >= 1000) {
-        return `${(distance / 1000).toFixed(2)} km`;
-      }
-      return `${distance.toFixed(2)} m`;
+    
+    formatLength(distance) {
+      if (!distance || isNaN(parseFloat(distance))) return 'Not available';
+      const value = parseFloat(distance);
+      return value < 1000 ? 
+        `${Math.round(value)} m` : 
+        `${(Math.round(value / 10) / 100).toFixed(2)} km`;
     }
   }
 };
@@ -244,96 +251,101 @@ export default {
   border-bottom: none;
 }
 
-.form-section h4 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #333;
-}
-
 .form-group {
   margin-bottom: 1rem;
 }
 
-.form-group label {
+label {
   display: block;
-  margin-bottom: 0.3rem;
-  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
   font-weight: 500;
-  color: #444;
 }
 
 .form-control {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.875rem;
+  border: 1px solid #ccc;
+  border-radius: 0.25rem;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
+.form-section {
+  margin-bottom: 1.5rem;
 }
 
-.checkbox-label input {
-  margin-right: 0.5rem;
+.form-section h4 {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .measurement-data {
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
 }
 
-.measurement-data > div {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.25rem 0;
+.measurement-input-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.input-with-display {
+  position: relative;
+}
+
+.input-display {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-family: monospace;
+  pointer-events: none;
 }
 
 .measurement-label {
   font-weight: 500;
+  margin-right: 0.5rem;
 }
 
-.form-actions {
+.measurement-value {
+  font-family: monospace;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+
+button:hover {
+  background-color: #0069d9;
+}
+
+button.secondary {
+  background-color: #6c757d;
+}
+
+button.secondary:hover {
+  background-color: #5a6268;
+}
+
+.button-group {
   margin-top: 1.5rem;
   display: flex;
   justify-content: flex-end;
 }
 
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-}
-
-.btn-primary {
-  background-color: #3490dc;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #2779bd;
-}
-
-.btn-primary:disabled {
-  background-color: #a0cbef;
-  cursor: not-allowed;
-}
-
-.loading-state,
-.error-state {
-  padding: 1rem;
-  text-align: center;
-  color: #666;
-}
-
-.error-state {
-  color: #e3342f;
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
 }
 </style>

@@ -59,6 +59,7 @@ import { toast, Toaster } from 'vue-sonner';
 import ConfirmDialog from './ConfirmDialog.vue';
 import SidePanel from './SidePanel.vue';
 import ShapeForm from './ShapeForm.vue';
+import L from 'leaflet';
 
 export default {
   name: 'MapComponent',
@@ -190,6 +191,50 @@ export default {
     }
   },
   methods: {
+    // Calculate perimeter for a polygon (array of LatLng objects)
+    calculatePerimeter(coordinates) {
+      let perimeter = 0;
+      
+      if (coordinates && coordinates.length > 1) {
+        for (let i = 0; i < coordinates.length - 1; i++) {
+          const p1 = L.latLng(coordinates[i].lat, coordinates[i].lng);
+          const p2 = L.latLng(coordinates[i+1].lat, coordinates[i+1].lng);
+          perimeter += p1.distanceTo(p2);
+        }
+        
+        // Add distance from last point back to first point to close the polygon
+        if (coordinates.length > 2) {
+          const first = L.latLng(coordinates[0].lat, coordinates[0].lng);
+          const last = L.latLng(coordinates[coordinates.length-1].lat, coordinates[coordinates.length-1].lng);
+          perimeter += last.distanceTo(first);
+        }
+      }
+      
+      return perimeter;
+    },
+    
+    // Format area to user-friendly string
+    formatArea(area) {
+      if (!area) return '0 m²';
+      
+      if (area < 10000) {
+        return Math.round(area) + ' m²';
+      } else {
+        return Math.round(area / 10000) / 100 + ' ha';
+      }
+    },
+    
+    // Format perimeter/distance to user-friendly string
+    formatLength(length) {
+      if (!length) return '0 m';
+      
+      if (length < 1000) {
+        return Math.round(length) + ' m';
+      } else {
+        return Math.round(length / 100) / 10 + ' km';
+      }
+    },
+    
     // Prepare data and show the confirmation dialog
     showConfirmDialog() {
       console.log('showConfirmDialog');
@@ -207,8 +252,30 @@ export default {
             const dbId = f.properties && f.properties._dbId ? f.properties._dbId : undefined;
             // If not from DB, treat as new
             if (!dbId) {
+              // Calculate area and perimeter for polygon features
+              let area = null;
+              let perimeter = null;
+              
+              if (f.geometry && f.geometry.type === 'Polygon') {
+                // Convert GeoJSON coordinates to LatLng array for Leaflet calculation
+                const coordinates = f.geometry.coordinates[0].map(coord => {
+                  return { lat: coord[1], lng: coord[0] };
+                });
+                
+                // Calculate area using Leaflet's GeometryUtil
+                area = L.GeometryUtil.geodesicArea(coordinates);
+                
+                // Calculate perimeter by summing distances between consecutive points
+                perimeter = this.calculatePerimeter(coordinates);
+              }
+              
               // Remove any id property if present
-              const clean = { geojson: { ...f } };
+              const clean = { 
+                geojson: { ...f },
+                area: area,
+                perimeter: perimeter
+              };
+              
               if (clean.geojson.properties) delete clean.geojson.properties._dbId;
               delete clean.geojson._dbId;
               delete clean.geojson._fromDb;
