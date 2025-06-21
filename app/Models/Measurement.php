@@ -8,7 +8,7 @@ class Measurement extends Model
 {
     protected $fillable = [
         'name',
-        'address',
+        'description',
         'area',
         'category',
         'tags',
