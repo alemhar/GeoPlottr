@@ -60,11 +60,31 @@ export default class LeafletMapAdapter extends IMapAdapter {
   }
 
   initMap(center = [14.5995, 120.9842], zoom = 13) {
-    this.map = L.map(this.containerId).setView(center, zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(this.map);
+    // Define base map layers
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    });
+    
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 19
+    });
+    
+    // Initialize map with satellite layer as default
+    this.map = L.map(this.containerId, {
+      layers: [satelliteLayer],
+      center: center,
+      zoom: zoom
+    });
 
+    // Add layer control to switch between satellite and street map
+    const baseLayers = {
+      "Satellite": satelliteLayer,
+      "Street Map": osmLayer
+    };
+    L.control.layers(baseLayers, {}).addTo(this.map);
+    
     // FeatureGroup to store editable layers
     this.drawnItems = new L.FeatureGroup();
     this.map.addLayer(this.drawnItems);
@@ -128,6 +148,23 @@ export default class LeafletMapAdapter extends IMapAdapter {
       this.map = null;
       this.drawnItems = null;
       this.drawControl = null;
+    }
+  }
+
+  // Get current map center and zoom
+  getMapState() {
+    if (!this.map) return null;
+    return {
+      center: this.map.getCenter(),
+      zoom: this.map.getZoom()
+    };
+  }
+  
+  // Set map center and zoom
+  setMapState(state) {
+    if (!this.map || !state) return;
+    if (state.center) {
+      this.map.setView(state.center, state.zoom || this.map.getZoom());
     }
   }
 

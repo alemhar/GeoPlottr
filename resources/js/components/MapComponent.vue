@@ -50,13 +50,36 @@ export default {
         new: [],
         modified: [],
         deleted: []
+      },
+      mapState: { // Track map position to restore after save
+        center: null,
+        zoom: null
       }
     };
   },
   mounted() {
     // Use the Leaflet adapter for now
     this.mapAdapter = new LeafletMapAdapter('map');
-    this.mapAdapter.initMap([14.5995, 120.9842], 13);
+    
+    // Try to restore map position from localStorage
+    let center = [14.5995, 120.9842];
+    let zoom = 13;
+    
+    try {
+      const savedState = localStorage.getItem('mapState');
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        if (parsedState.lat && parsedState.lng) {
+          center = [parsedState.lat, parsedState.lng];
+          zoom = parsedState.zoom || zoom;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore map state', e);
+    }
+    
+    // Initialize map with the restored or default position
+    this.mapAdapter.initMap(center, zoom);
     // Aggregate all features from all measurements
     let allFeatures = [];
     if (this.measurements && this.measurements.length > 0) {
@@ -158,6 +181,16 @@ export default {
           deleted: this.deletedFeatureIds
         };
         
+        // Save current map position to memory and localStorage
+        this.mapState = this.mapAdapter.getMapState();
+        if (this.mapState) {
+          localStorage.setItem('mapState', JSON.stringify({
+            lat: this.mapState.center.lat,
+            lng: this.mapState.center.lng,
+            zoom: this.mapState.zoom
+          }));
+        }
+        
         // Set confirmation message based on content
         this.confirmMessage = (!geojson || geojson.features.length === 0) 
           ? 'No measurements found. This will erase all saved measurements. Continue?' 
@@ -203,6 +236,12 @@ export default {
           } else {
             toast.success('Measurements saved successfully!');
           }
+          
+          // Restore map position if we saved it
+          if (this.mapState && this.mapAdapter) {
+            this.mapAdapter.setMapState(this.mapState);
+          }
+          
           this.saving = false;
           this.confirmDialogOpen = false;
         },
