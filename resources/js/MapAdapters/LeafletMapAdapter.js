@@ -22,6 +22,18 @@ export default class LeafletMapAdapter extends IMapAdapter {
     layer.feature.properties = feature.properties;
     layer.feature.geometry = feature.geometry;
     this.drawnItems.addLayer(layer);
+    
+    // Add click handler to each layer
+    layer.on('click', (e) => {
+      L.DomEvent.stopPropagation(e); // Prevent map click
+      // Emit custom feature click event
+      this.emit('featureClick', { feature: layer.feature, layer: layer, event: e });
+      // Still show popup if needed
+      if (layer._popup) {
+        layer.openPopup(e.latlng);
+      }
+    });
+    
     // Optionally display measurement popup
     if (feature.geometry.type === 'Polygon') {
       const latlngs = layer.getLatLngs()[0];
@@ -57,6 +69,7 @@ export default class LeafletMapAdapter extends IMapAdapter {
     this.map = null;
     this.drawnItems = null;
     this.drawControl = null;
+    this.eventHandlers = {}; // For custom events
   }
 
   initMap(center = [14.5995, 120.9842], zoom = 13) {
@@ -117,6 +130,12 @@ export default class LeafletMapAdapter extends IMapAdapter {
         const distance = this.getPolylineDistance(layer);
         layer.bindPopup('Distance: ' + this.formatDistance(distance)).openPopup();
       }
+      
+      // Add click handler to the newly created layer
+      layer.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        this.emit('featureClick', { feature: layer.feature, layer: layer, event: e });
+      });
     });
 
     // When editing, preserve _dbId and _fromDb, and set _modified
@@ -192,6 +211,33 @@ export default class LeafletMapAdapter extends IMapAdapter {
       return (distance / 1000).toFixed(2) + ' km';
     }
     return distance.toFixed(2) + ' m';
+  }
+  
+  // Custom event handling methods
+  on(event, callback) {
+    if (!this.eventHandlers[event]) {
+      this.eventHandlers[event] = [];
+    }
+    this.eventHandlers[event].push(callback);
+    return this;
+  }
+  
+  off(event, callback) {
+    if (!this.eventHandlers[event]) return this;
+    if (!callback) {
+      delete this.eventHandlers[event];
+    } else {
+      this.eventHandlers[event] = this.eventHandlers[event].filter(cb => cb !== callback);
+    }
+    return this;
+  }
+  
+  emit(event, data) {
+    if (!this.eventHandlers[event]) return;
+    this.eventHandlers[event].forEach(callback => {
+      callback(data);
+    });
+    return this;
   }
 }
 

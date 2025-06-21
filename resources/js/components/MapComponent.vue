@@ -9,6 +9,18 @@
     {{ saving ? 'Saving...' : 'Save Session' }}
   </button>
   
+  <!-- Reusable side panel for feature details -->
+  <SidePanel v-model="sidePanelOpen" :title="selectedFeatureTitle">
+    <!-- Panel content will be dynamic based on the selected feature -->
+    <div v-if="selectedFeature" class="feature-details">
+      <p v-if="selectedFeature._dbId">ID: {{ selectedFeature._dbId }}</p>
+      <div v-if="selectedFeature.geometry">
+        <p>Type: {{ selectedFeature.geometry.type }}</p>
+      </div>
+      <!-- Panel will be extended with more fields later -->
+    </div>
+  </SidePanel>
+  
   <!-- Alert Dialog for confirmation -->
   <ConfirmDialog
     v-model="confirmDialogOpen"
@@ -25,12 +37,14 @@ import LeafletMapAdapter from '../MapAdapters/LeafletMapAdapter';
 import { Inertia } from '@inertiajs/inertia';
 import { toast, Toaster } from 'vue-sonner';
 import ConfirmDialog from './ConfirmDialog.vue';
+import SidePanel from './SidePanel.vue';
 
 export default {
   name: 'MapComponent',
   components: {
     ConfirmDialog,
-    Toaster
+    Toaster,
+    SidePanel
   },
   props: {
     measurements: {
@@ -54,7 +68,11 @@ export default {
       mapState: { // Track map position to restore after save
         center: null,
         zoom: null
-      }
+      },
+      // Side panel state
+      sidePanelOpen: false,
+      selectedFeature: null,
+      selectedFeatureTitle: 'Shape Details'
     };
   },
   mounted() {
@@ -112,6 +130,19 @@ export default {
       this.dbFeatures.push(f);
     });
     // Listen for edits/deletes
+    this.mapAdapter.on('editstart', () => {
+      console.log('Edit started');
+    });
+
+    this.mapAdapter.on('editstop', () => {
+      console.log('Edit stopped');
+    });
+    
+    // Add click handler for features to open side panel
+    this.mapAdapter.on('featureClick', (e) => {
+      this.openSidePanel(e.feature, e.layer);
+    });
+
     this.mapAdapter.onFeatureEdited = (feature) => {
       feature._modified = true;
     };
@@ -213,6 +244,28 @@ export default {
     cancelSave() {
       toast('Save operation cancelled');
       this.confirmDialogOpen = false;
+    },
+    
+    // Confirmed, proceed with save
+    selectLayerById(id) {
+      // Implementation of selecting a specific layer by id
+    },
+    
+    // Side panel methods
+    openSidePanel(feature, layer) {
+      this.selectedFeature = feature;
+      
+      // Set the title based on feature properties
+      let title = 'Shape Details';
+      if (feature.properties && feature.properties.name) {
+        title = feature.properties.name;
+      } else if (feature._dbId) {
+        title = `Shape #${feature._dbId}`;
+      }
+      this.selectedFeatureTitle = title;
+      
+      // Open the panel
+      this.sidePanelOpen = true;
     },
     
     // Confirmed, proceed with save
