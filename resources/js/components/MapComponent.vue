@@ -84,6 +84,7 @@ export default {
     let allFeatures = [];
     if (this.measurements && this.measurements.length > 0) {
       this.measurements.forEach(m => {
+        console.log(m.name);
         if (m.geojson && m.geojson.type === 'FeatureCollection' && Array.isArray(m.geojson.features)) {
           m.geojson.features.forEach(f => {
             f._dbId = m.id;
