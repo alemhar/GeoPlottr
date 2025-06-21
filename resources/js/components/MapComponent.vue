@@ -96,7 +96,22 @@ export default {
       // Side panel state
       sidePanelOpen: false,
       selectedFeature: null,
-      selectedFeatureTitle: 'Shape Details'
+      selectedLayer: null, // Track the currently selected layer for highlighting
+      selectedFeatureTitle: 'Shape Details',
+      // Style for highlighting the selected shape
+      highlightStyle: {
+        color: '#ff0000', // Red border
+        weight: 3,        // Thicker line
+        opacity: 1,       // Fully opaque
+        fillOpacity: 0.2  // Semi-transparent fill
+      },
+      // Default style to reset to when a shape is no longer selected
+      defaultStyle: {
+        color: '#3388ff',  // Default Leaflet blue color
+        weight: 2,         // Default width
+        opacity: 0.8,      // Default opacity
+        fillOpacity: 0.2   // Default fill opacity
+      }
     };
   },
   mounted() {
@@ -132,6 +147,7 @@ export default {
             f._dbId = m.id;
             f._fromDb = true;
             f._modified = false;
+            f.name = m.name;
             // Attach id to properties for persistence through toGeoJSON
             if (!f.properties) f.properties = {};
             f.properties._dbId = m.id;
@@ -143,6 +159,7 @@ export default {
           f._dbId = m.id;
           f._fromDb = true;
           f._modified = false;
+          f.name = m.name;
           if (!f.properties) f.properties = {};
           f.properties._dbId = m.id;
           allFeatures.push(f);
@@ -430,17 +447,33 @@ export default {
     
     // Side panel methods
     openSidePanel(feature, layer) {
+      // Reset style of previously selected layer if any
+      if (this.selectedLayer && this.selectedLayer !== layer) {
+        this.resetLayerStyle(this.selectedLayer);
+      }
+      
       this.selectedFeature = feature;
+      this.selectedLayer = layer;
+      
+      // Apply highlighting style to the selected layer
+      if (layer) {
+        this.highlightLayer(layer);
+      }
       
       // Set the title based on feature properties
       let title = 'Shape Details';
       if (feature.properties) {
         if (feature.properties.name) {
           title = feature.properties.name;
-        } else if (feature.properties.id) {
-          title = `Shape #${feature.properties.id}`;
+        } else if (feature.properties.description) {
+          title = feature.properties.description;
+        } else if (feature.properties.id || feature.properties._dbId) {
+          title = `Shape #${feature.properties.id || feature.properties._dbId}`;
         }
       }
+      
+      // For debugging purposes
+      console.log('Side Panel - Feature properties:', feature.properties || {});
       this.selectedFeatureTitle = title;
       
       // Open the panel
@@ -448,6 +481,24 @@ export default {
     },
     
     // Confirmed, proceed with save
+    // Apply highlight style to layer
+    highlightLayer(layer) {
+      if (layer && layer.setStyle) {
+        layer.setStyle(this.highlightStyle);
+        // Bring the layer to the front to make it more visible
+        if (layer.bringToFront) {
+          layer.bringToFront();
+        }
+      }
+    },
+    
+    // Reset layer to default style
+    resetLayerStyle(layer) {
+      if (layer && layer.setStyle) {
+        layer.setStyle(this.defaultStyle);
+      }
+    },
+    
     saveConfirmed() {
       this.saving = true;
       
@@ -492,6 +543,16 @@ export default {
       });
     },
   },
+  watch: {
+    // Watch for side panel state changes
+    sidePanelOpen(newValue) {
+      // If side panel is closed, reset the style of the previously selected layer
+      if (!newValue && this.selectedLayer) {
+        this.resetLayerStyle(this.selectedLayer);
+        this.selectedLayer = null;
+      }
+    }
+  }
 };
 </script>
 

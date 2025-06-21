@@ -39,8 +39,24 @@ export default class LeafletMapAdapter extends IMapAdapter {
       const latlngs = layer.getLatLngs()[0];
       const area = L.GeometryUtil.geodesicArea(latlngs);
       const coordsList = latlngs.map(latlng => `[${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}]`).join('<br>');
+      
+      // Get shape name following the same logic as the side panel
+      let name = feature.name || `Shape #${props.id || props._dbId}`;
+      const props = feature.properties || {};
+      
+      // For debugging, log the available properties
+      console.log('Popup - Feature properties:', props);
+      
+      // Add a default name to newly drawn features
+      if (name === 'Unnamed Shape' && !props._dbId) {
+        // This is a new shape without a name or ID
+        if (!feature.properties) feature.properties = {};
+        feature.properties.description = 'New Shape';
+        name = 'New Shape';
+      }
+      
       layer.bindPopup(
-        `<b>Area:</b> ${this.formatArea(area)}<br><b>Coordinates:</b><br>${coordsList}`
+        `<b>Name:</b> ${name}<br><b>Area:</b> ${this.formatArea(area)}<br>`
       );
     } else if (feature.geometry.type === 'LineString') {
       const latlngs = layer.getLatLngs();
