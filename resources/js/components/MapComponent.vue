@@ -4,7 +4,7 @@
   <button 
     @click="showConfirmDialog" 
     :disabled="saving" 
-    style="position: absolute; top: 16px; right: 16px; z-index: 1000; background: #fff; border: 1px solid #ccc; padding: 8px 16px; border-radius: 4px;"
+    style="position: absolute; bottom: 16px; left: 16px; z-index: 1000; background: #fff; border: 1px solid #ccc; padding: 8px 16px; border-radius: 4px;"
   >
     {{ saving ? 'Saving...' : 'Save Session' }}
   </button>
