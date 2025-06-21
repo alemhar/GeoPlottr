@@ -1,5 +1,5 @@
 <template>
-  <div id="map" style="height: 100vh; width: 100vw;"></div>
+  <div id="map" style="height: 100vh; width: 100vw; overflow: hidden; position: absolute; top: 0; left: 0;"></div>
   <Toaster position="top-right" richColors />
   <button 
     @click="showConfirmDialog" 
@@ -7,6 +7,16 @@
     style="position: absolute; bottom: 16px; left: 16px; z-index: 1000; background: #fff; border: 1px solid #ccc; padding: 8px 16px; border-radius: 4px;"
   >
     {{ saving ? 'Saving...' : 'Save Session' }}
+  </button>
+  
+  <button 
+    @click="locateUser" 
+    style="position: absolute; bottom: 16px; left: 160px; z-index: 1000; background: #fff; border: 1px solid #ccc; padding: 8px 16px; border-radius: 4px; display: flex; align-items: center;"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-navigation" style="margin-right: 6px;">
+      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+    </svg>
+    Locate Me
   </button>
   
   <!-- Reusable side panel for feature details -->
@@ -118,8 +128,8 @@ export default {
     // Use the Leaflet adapter for now
     this.mapAdapter = new LeafletMapAdapter('map');
     
-    // Try to restore map position from localStorage
-    let center = [14.5995, 120.9842];
+    // Try to restore map position from localStorage first
+    let center = [14.5995, 120.9842]; // Default coordinates
     let zoom = 13;
     
     try {
@@ -481,6 +491,71 @@ export default {
     },
     
     // Confirmed, proceed with save
+    // Handle locate me button click - this is triggered by user action so geolocation is allowed
+    async locateUser() {
+      toast.info('Getting your location...');
+      
+      try {
+        // Get user coordinates
+        const coordinates = await this.getUserLocation();
+        
+        if (coordinates) {
+          // Center map at user location - directly use setView instead of setMapState
+          if (this.mapAdapter && this.mapAdapter.map) {
+            // Create a LatLng object that Leaflet can use
+            const lat = coordinates[0];
+            const lng = coordinates[1];
+            this.mapAdapter.map.setView([lat, lng], 15); // Zoom level 15
+            
+            // Add a temporary marker at the user's location
+            const marker = L.marker([lat, lng], {
+              icon: L.divIcon({
+                className: 'user-location-marker',
+                html: `<div style="background-color: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+              })
+            }).addTo(this.mapAdapter.map);
+            
+            // Remove marker after 5 seconds
+            setTimeout(() => {
+              if (marker && this.mapAdapter && this.mapAdapter.map) {
+                this.mapAdapter.map.removeLayer(marker);
+              }
+            }, 5000);
+            
+            toast.success('Map centered to your location');
+          }
+        }
+      } catch (error) {
+        console.error('Location error:', error);
+        toast.error('Could not get your location');
+      }
+    },
+    
+    // Get user's location using browser geolocation API
+    getUserLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation not supported by your browser'));
+          return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+          // Success callback
+          (position) => {
+            resolve([position.coords.latitude, position.coords.longitude]);
+          },
+          // Error callback
+          (error) => {
+            reject(error);
+          },
+          // Options
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+      });
+    },
+    
     // Apply highlight style to layer
     highlightLayer(layer) {
       if (layer && layer.setStyle) {

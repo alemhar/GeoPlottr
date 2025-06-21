@@ -41,8 +41,8 @@ export default class LeafletMapAdapter extends IMapAdapter {
       const coordsList = latlngs.map(latlng => `[${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}]`).join('<br>');
       
       // Get shape name following the same logic as the side panel
-      let name = feature.name || `Shape #${props.id || props._dbId}`;
       const props = feature.properties || {};
+      let name = feature.name || `Shape #${props.id || props._dbId}` || 'Unnamed Shape';
       
       // For debugging, log the available properties
       console.log('Popup - Feature properties:', props);
