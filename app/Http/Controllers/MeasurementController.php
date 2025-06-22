@@ -12,7 +12,7 @@ class MeasurementController extends Controller
     public function index()
     {
         $measurements = Measurement::all();
-        return Inertia::render('Welcome', [
+        return Inertia::render('Dashboard', [
             'measurements' => $measurements,
         ]);
     }
