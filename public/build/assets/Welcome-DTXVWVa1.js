@@ -1,0 +1,1 @@
+import{d as s,c as n,o as r,a as e,u as m,g as o,F as c}from"./app-6pSmfv79.js";import{M as p}from"./MapComponent-E4er63-H.js";const d=s({__name:"Welcome",props:{measurements:{type:Array,default:()=>[]}},setup(a){const t=a;return(u,l)=>(r(),n(c,null,[e(m(o),{title:"Welcome"}),e(p,{measurements:t.measurements},null,8,["measurements"])],64))}});export{d as default};
